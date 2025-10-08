@@ -19,7 +19,6 @@ logs/
 # ───── Build / compiled files ─────
 dist/
 build/
-lib/
 
 # ───── OS / Editor junk ─────
 .DS_Store
