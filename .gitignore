@@ -1,0 +1,32 @@
+# ───── Node.js dependencies ─────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# ───── Environment files ─────
+.env
+.env.local
+!.env.example  # keep a safe example if needed
+
+# ───── Logs & cache ─────
+logs/
+*.log
+.cache/
+.tmp/
+
+# ───── Build / compiled files ─────
+dist/
+build/
+lib/
+
+# ───── OS / Editor junk ─────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ───── Misc ─────
+uploads/
+coverage/

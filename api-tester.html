@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchoolSync API Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .endpoint-group {
+            margin-bottom: 15px;
+        }
+        
+        .endpoint-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .method-badge {
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85em;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .method-get { background: #10b981; color: white; }
+        .method-post { background: #3b82f6; color: white; }
+        .method-put { background: #f59e0b; color: white; }
+        .method-delete { background: #ef4444; color: white; }
+        
+        .endpoint-url {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+            background: white;
+        }
+        
+        .test-button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .test-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .test-button:active {
+            transform: translateY(0);
+        }
+        
+        .copy-button {
+            padding: 10px 15px;
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        
+        .copy-button:hover {
+            background: #4b5563;
+        }
+        
+        .response-area {
+            margin-top: 20px;
+            padding: 20px;
+            background: #1f2937;
+            color: #10b981;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .response-area.error {
+            color: #ef4444;
+        }
+        
+        .response-area.success {
+            color: #10b981;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #374151;
+        }
+        
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .input-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-online { background: #10b981; }
+        .status-offline { background: #ef4444; }
+        
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .quick-link {
+            padding: 15px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #374151;
+            transition: all 0.3s;
+        }
+        
+        .quick-link:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .quick-link strong {
+            display: block;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 SchoolSync API Tester</h1>
+            <p>Test your Express.js API endpoints</p>
+        </div>
+        
+        <div class="content">
+            <!-- Quick Health Checks -->
+            <div class="test-section">
+                <h2>🏥 Quick Health Checks</h2>
+                <div class="quick-links">
+                    <a href="http://localhost:3001/" target="_blank" class="quick-link">
+                        <strong>Root Endpoint</strong>
+                        <span>http://localhost:3001/</span>
+                    </a>
+                    <a href="http://localhost:3001/health" target="_blank" class="quick-link">
+                        <strong>Basic Health</strong>
+                        <span>http://localhost:3001/health</span>
+                    </a>
+                    <a href="http://localhost:3001/api/health" target="_blank" class="quick-link">
+                        <strong>API Health</strong>
+                        <span>http://localhost:3001/api/health</span>
+                    </a>
+                    <a href="http://localhost:3001/api/schools" target="_blank" class="quick-link">
+                        <strong>Schools List</strong>
+                        <span>http://localhost:3001/api/schools</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Custom Request Tester -->
+            <div class="test-section">
+                <h2>🧪 Custom Request Tester</h2>
+                
+                <div class="input-group">
+                    <label>Method:</label>
+                    <select id="method" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px;">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label>URL:</label>
+                    <input type="text" id="url" placeholder="http://localhost:3001/api/schools" value="http://localhost:3001/api/schools">
+                </div>
+                
+                <div class="input-group">
+                    <label>Request Body (JSON - for POST/PUT):</label>
+                    <textarea id="body" placeholder='{"name": "Test School", "location": "Test City"}'></textarea>
+                </div>
+                
+                <button class="test-button" onclick="sendRequest()">Send Request</button>
+                <button class="copy-button" onclick="copyResponse()" style="margin-left: 10px;">Copy Response</button>
+                
+                <div id="response" class="response-area">Response will appear here...</div>
+            </div>
+
+            <!-- Common Endpoints -->
+            <div class="test-section">
+                <h2>📋 Common GET Endpoints (Click to Test)</h2>
+                
+                <div class="endpoint-group">
+                    <h3 style="margin-bottom: 10px; color: #6b7280;">Schools</h3>
+                    <div class="endpoint-item">
+                        <span class="method-badge method-get">GET</span>
+                        <input class="endpoint-url" readonly value="http://localhost:3001/api/schools">
+                        <button class="test-button" onclick="quickTest('GET', 'http://localhost:3001/api/schools')">Test</button>
+                        <button class="copy-button" onclick="copyToClipboard('http://localhost:3001/api/schools')">Copy</button>
+                    </div>
+                    
+                    <div class="endpoint-item">
+                        <span class="method-badge method-get">GET</span>
+                        <input class="endpoint-url" readonly value="http://localhost:3001/api/schools?include_stats=true">
+                        <button class="test-button" onclick="quickTest('GET', 'http://localhost:3001/api/schools?include_stats=true')">Test</button>
+                        <button class="copy-button" onclick="copyToClipboard('http://localhost:3001/api/schools?include_stats=true')">Copy</button>
+                    </div>
+                </div>
+                
+                <div class="endpoint-group">
+                    <h3 style="margin-bottom: 10px; color: #6b7280; margin-top: 15px;">Students</h3>
+                    <div class="endpoint-item">
+                        <span class="method-badge method-get">GET</span>
+                        <input class="endpoint-url" readonly value="http://localhost:3001/api/students">
+                        <button class="test-button" onclick="quickTest('GET', 'http://localhost:3001/api/students')">Test</button>
+                        <button class="copy-button" onclick="copyToClipboard('http://localhost:3001/api/students')">Copy</button>
+                    </div>
+                </div>
+                
+                <div class="endpoint-group">
+                    <h3 style="margin-bottom: 10px; color: #6b7280; margin-top: 15px;">Parents</h3>
+                    <div class="endpoint-item">
+                        <span class="method-badge method-get">GET</span>
+                        <input class="endpoint-url" readonly value="http://localhost:3001/api/parents">
+                        <button class="test-button" onclick="quickTest('GET', 'http://localhost:3001/api/parents')">Test</button>
+                        <button class="copy-button" onclick="copyToClipboard('http://localhost:3001/api/parents')">Copy</button>
+                    </div>
+                </div>
+                
+                <div class="endpoint-group">
+                    <h3 style="margin-bottom: 10px; color: #6b7280; margin-top: 15px;">Theme</h3>
+                    <div class="endpoint-item">
+                        <span class="method-badge method-get">GET</span>
+                        <input class="endpoint-url" readonly value="http://localhost:3001/api/theme/1">
+                        <button class="test-button" onclick="quickTest('GET', 'http://localhost:3001/api/theme/1')">Test</button>
+                        <button class="copy-button" onclick="copyToClipboard('http://localhost:3001/api/theme/1')">Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function sendRequest() {
+            const method = document.getElementById('method').value;
+            const url = document.getElementById('url').value;
+            const body = document.getElementById('body').value;
+            const responseDiv = document.getElementById('response');
+            
+            responseDiv.textContent = 'Sending request...';
+            responseDiv.className = 'response-area';
+            
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if ((method === 'POST' || method === 'PUT') && body) {
+                    options.body = body;
+                }
+                
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+                responseDiv.className = response.ok ? 'response-area success' : 'response-area error';
+            } catch (error) {
+                responseDiv.textContent = `Error: ${error.message}`;
+                responseDiv.className = 'response-area error';
+            }
+        }
+        
+        async function quickTest(method, url) {
+            document.getElementById('method').value = method;
+            document.getElementById('url').value = url;
+            await sendRequest();
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text);
+            alert('URL copied to clipboard!');
+        }
+        
+        function copyResponse() {
+            const response = document.getElementById('response').textContent;
+            navigator.clipboard.writeText(response);
+            alert('Response copied to clipboard!');
+        }
+    </script>
+</body>
+</html>
