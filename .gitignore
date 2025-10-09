@@ -6,7 +6,6 @@ yarn-error.log*
 package-lock.json
 
 # ───── Environment files ─────
-.env
 .env.local
 !.env.example  # keep a safe example if needed
 
