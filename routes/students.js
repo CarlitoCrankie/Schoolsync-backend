@@ -1202,6 +1202,7 @@
 //     timestamp: new Date().toISOString()
 //   })
 // }
+
 // routes/students.js - Enhanced Students API with full CRUD operations
 const express = require('express');
 const router = express.Router();
@@ -1280,6 +1281,17 @@ async function handleGet(req, res) {
     page = 1           
   } = req.query;
 
+    // ✅ DEBUG: Log what we're receiving
+  console.log('=====================================');
+  console.log('Students API Query Parameters:');
+  console.log('  school_id:', school_id);
+  console.log('  active_only:', active_only, '(type:', typeof active_only, ')');
+  console.log('  search:', search);
+  console.log('  grade:', grade);
+  console.log('  page:', page);
+  console.log('  limit:', limit);
+  console.log('=====================================');
+
   // Convert page to offset if needed
   const calculatedOffset = offset || ((page - 1) * limit);
 
@@ -1342,12 +1354,24 @@ async function handleGet(req, res) {
     conditions.push('st.Grade = @grade');
     baseParams.grade = grade;
   }
-  
+    
+  // ✅ Handle both active and inactive filtering
   if (active_only === 'true') {
     conditions.push('st.IsActive = 1');
+    console.log('✅ Filter: ACTIVE ONLY (IsActive = 1)');
+  } else if (active_only === 'false') {
+    conditions.push('st.IsActive = 0');  // Only show inactive
+    console.log('✅ Filter: INACTIVE ONLY (IsActive = 0)');
+  } else {
+    console.log('✅ Filter: ALL STUDENTS (no active filter)');
   }
+  // If active_only is not set, show all students
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // ✅ DEBUG: Log the final WHERE clause
+  console.log('WHERE Clause:', whereClause);
+  console.log('=====================================');
 
   // STEP 1: Get total counts (with same filters as main query)
   let totalCounts = { total: 0, active: 0, inactive: 0, filtered_total: 0 };

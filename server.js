@@ -11,9 +11,28 @@ console.log('📍 Port:', process.env.PORT || 3001);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
+// NEW - Simple and reliable CORS for development
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5174',
+  'https://diamondattendance.com',
+  'http://diamondattendance.com'
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (Postman, mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(null, true); // TEMPORARY: Allow all origins for debugging
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

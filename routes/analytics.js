@@ -980,7 +980,7 @@ const { getPool, sql } = require('../lib/database');
 async function executeQuery(query, params = {}, timeout = 30000) {
   const pool = await getPool();
   const request = pool.request();
-  request.setTimeout(timeout);
+  request.timeout=timeout;
   
   // Add parameters to request
   Object.entries(params).forEach(([key, value]) => {
