@@ -77,6 +77,7 @@ try {
   const themeRoutes = require('./routes/theme');
   const healthRoutes = require('./routes/health');
   const maintenanceRoutes = require('./routes/maintenance');
+  const debugRoutes = require('./routes/debug');
 
   console.log('✅ All routes loaded successfully');
 
@@ -94,6 +95,7 @@ try {
   app.use('/api/theme', themeRoutes);
   app.use('/api/health', healthRoutes);
   app.use('/api/maintenance', maintenanceRoutes);
+  app.use('/api/debug', debugRoutes);
 
   console.log('✅ All routes mounted successfully');
 

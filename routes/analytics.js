@@ -318,8 +318,7 @@ async function getOverviewAnalytics(schoolId, companyId) {
 }
 
 // Real-time Attendance Analytics
-// Real-time Attendance Analytics
-async function getRealTimeAttendance(schoolId, dateFrom, dateTo, grade = null, companyId = null, limit = null) {  // ✅ Add limit parameter
+async function getRealTimeAttendance(schoolId, dateFrom, dateTo, grade = null, companyId = null, limit = null) {
   const startTime = Date.now();
 
   try {
@@ -327,21 +326,32 @@ async function getRealTimeAttendance(schoolId, dateFrom, dateTo, grade = null, c
     
     // ✅ Handle limit parameter
     const recordLimit = limit && parseInt(limit) > 0 ? parseInt(limit) : 100;
-    const useLimit = recordLimit < 999999; // Don't use TOP if requesting all records
+    const useLimit = recordLimit < 999999;
     
     console.log('📊 getRealTimeAttendance called with limit:', limit, '-> using:', recordLimit, 'useLimit:', useLimit);
     
-    // Handle date range
+    // ✅ FIX: Handle date range with explicit UTC conversion
     let dateFilter = '';
     if (dateFrom && dateTo) {
+      // ✅ Create UTC dates at start and end of day
       const startDateTime = new Date(dateFrom + 'T00:00:00.000Z');
       const endDateTime = new Date(dateTo + 'T23:59:59.999Z');
       
+      console.log('📅 Date Filter (UTC):', {
+        input: { dateFrom, dateTo },
+        parsed: {
+          start: startDateTime.toISOString(),
+          end: endDateTime.toISOString()
+        }
+      });
+      
       params.startDate = startDateTime;
       params.endDate = endDateTime;
-      dateFilter = ' AND a.ScanTime BETWEEN @startDate AND @endDate';
+      dateFilter = ' AND a.ScanTime >= @startDate AND a.ScanTime <= @endDate';
     } else {
-      const defaultStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const defaultStart = new Date();
+      defaultStart.setUTCHours(0, 0, 0, 0);
+      defaultStart.setUTCDate(defaultStart.getUTCDate() - 1); // Last 24 hours
       params.defaultStart = defaultStart;
       dateFilter = ' AND a.ScanTime >= @defaultStart';
     }
