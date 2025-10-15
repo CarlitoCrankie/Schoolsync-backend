@@ -1240,13 +1240,144 @@ router.post('/', async (req, res) => {
 // PUT - Update student
 router.put('/', async (req, res) => {
   try {
-    return await handlePut(req, res);
+    const { student_id } = req.query;
+    const { 
+      name, 
+      grade, 
+      student_code, 
+      is_active, 
+      parent_email, 
+      parent_phone 
+    } = req.body;
+
+    if (!student_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Student ID is required'
+      });
+    }
+
+    const pool = await getPool();
+
+    // Check if student exists
+    const studentCheck = await pool.request()
+      .input('studentId', sql.Int, parseInt(student_id))
+      .query('SELECT StudentID FROM Students WHERE StudentID = @studentId');
+
+    if (studentCheck.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Student not found'
+      });
+    }
+
+    // Build dynamic update query for student
+    const updates = [];
+    const request = pool.request();
+    request.input('studentId', sql.Int, parseInt(student_id));
+
+    if (name !== undefined && name !== null && name.trim() !== '') {
+      updates.push('Name = @name');
+      request.input('name', sql.NVarChar, name.trim());
+    }
+
+    if (grade !== undefined) {
+      updates.push('Grade = @grade');
+      request.input('grade', sql.NVarChar, grade);
+    }
+
+    if (student_code !== undefined) {
+      updates.push('StudentCode = @studentCode');
+      request.input('studentCode', sql.NVarChar, student_code);
+    }
+
+    if (is_active !== undefined) {
+      updates.push('IsActive = @isActive');
+      request.input('isActive', sql.Bit, is_active);
+    }
+
+    // Update student if there are fields to update
+    if (updates.length > 0) {
+      const updateQuery = `
+        UPDATE Students 
+        SET ${updates.join(', ')}
+        OUTPUT INSERTED.*
+        WHERE StudentID = @studentId
+      `;
+      await request.query(updateQuery);
+    }
+
+    // ✅ Handle parent contact info (including NULL to clear)
+    // Check if parent_email or parent_phone is present in request body
+    if (parent_email !== undefined || parent_phone !== undefined) {
+      const parentCheck = await pool.request()
+        .input('studentId', sql.Int, parseInt(student_id))
+        .query(`
+          SELECT TOP 1 ParentID 
+          FROM Parents 
+          WHERE StudentID = @studentId
+          ORDER BY IsPrimary DESC, ParentID ASC
+        `);
+
+      if (parentCheck.recordset.length > 0) {
+        const parentId = parentCheck.recordset[0].ParentID;
+        const parentUpdates = [];
+        const parentRequest = pool.request();
+        parentRequest.input('parentId', sql.Int, parentId);
+
+        // ✅ Handle email (including explicit NULL to clear)
+        if (parent_email !== undefined) {
+          parentUpdates.push('Email = @email');
+          parentRequest.input('email', sql.NVarChar, parent_email || null);
+          console.log(`📧 Setting email to: ${parent_email || 'NULL'}`);
+        }
+
+        // ✅ Handle phone (including explicit NULL to clear)
+        if (parent_phone !== undefined) {
+          parentUpdates.push('PhoneNumber = @phoneNumber');
+          parentRequest.input('phoneNumber', sql.NVarChar, parent_phone || null);
+          console.log(`📱 Setting phone to: ${parent_phone || 'NULL'}`);
+        }
+
+        if (parentUpdates.length > 0) {
+          await parentRequest.query(`
+            UPDATE Parents 
+            SET ${parentUpdates.join(', ')}
+            WHERE ParentID = @parentId
+          `);
+          
+          console.log(`✅ Updated parent contact for StudentID ${student_id}`);
+        }
+      } else {
+        // Create parent record if contact info is being added
+        if ((parent_email && parent_email.trim()) || (parent_phone && parent_phone.trim())) {
+          const createResult = await pool.request()
+            .input('studentId', sql.Int, parseInt(student_id))
+            .input('parentName', sql.NVarChar, 'Parent/Guardian')
+            .input('email', sql.NVarChar, parent_email || null)
+            .input('phoneNumber', sql.NVarChar, parent_phone || null)
+            .input('isPrimary', sql.Bit, 1)
+            .query(`
+              INSERT INTO Parents (StudentID, Name, Email, PhoneNumber, IsPrimary, CreatedAt)
+              OUTPUT INSERTED.ParentID
+              VALUES (@studentId, @parentName, @email, @phoneNumber, @isPrimary, GETDATE())
+            `);
+          
+          console.log(`✅ Created parent record for StudentID ${student_id}`);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Student updated successfully'
+    });
+
   } catch (error) {
-    console.error('Students API error:', error);
+    console.error('Update student error:', error);
     res.status(500).json({
       success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
+      error: error.message
     });
   }
 });

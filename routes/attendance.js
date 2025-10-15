@@ -198,9 +198,140 @@ async function getAttendanceStats(pool, studentId, schoolId, days) {
 }
 
 // Proper stats calculation function that counts unique days
+// async function calculateProperAttendanceStats(pool, studentId, schoolId, days) {
+//   try {
+//     // ✅ Get school time settings from SchoolTimeSettings table
+//     const settingsQuery = await pool.request()
+//       .input('schoolId', sql.Int, schoolId || 2)
+//       .query(`
+//         SELECT TOP 1
+//           ISNULL(SchoolStartTime, '08:00:00') as SchoolStartTime,
+//           ISNULL(LateArrivalTime, '08:30:00') as LateArrivalTime
+//         FROM [SchoolApp].[dbo].[SchoolTimeSettings]
+//         WHERE SchoolID = @schoolId
+//       `);
+    
+//     // Use settings from DB or fallback to defaults
+//     const startTime = settingsQuery.recordset[0]?.SchoolStartTime || '08:00:00';
+//     const lateTime = settingsQuery.recordset[0]?.LateArrivalTime || '08:30:00';
+    
+//     console.log('⚙️ School time settings loaded:', {
+//       schoolId,
+//       startTime,
+//       lateTime
+//     });
+    
+//     // Calculate the actual start date based on days parameter
+//     const startDate = new Date();
+//     startDate.setDate(startDate.getDate() - days);
+//     startDate.setHours(0, 0, 0, 0);
+    
+//     // Calculate stats based on unique DAYS, not individual records
+//     const statsQuery = await pool.request()
+//       .input('studentId', sql.Int, studentId)
+//       .input('schoolId', sql.Int, schoolId || 2)
+//       .input('startDate', sql.DateTime, startDate)
+//       .input('lateArrivalTime', sql.Time, lateTime)
+//       .query(`
+//         SELECT 
+//           -- Count unique days with at least one check-in (Present Days)
+//           COUNT(DISTINCT CASE 
+//             WHEN a.Status = 'IN' 
+//             THEN CAST(a.ScanTime as DATE) 
+//           END) as PresentDays,
+          
+//           -- Count unique days with late arrivals (Late Days)
+//           -- Using LateArrivalTime from settings
+//           COUNT(DISTINCT CASE 
+//             WHEN a.Status = 'IN' 
+//             AND CONVERT(TIME, a.ScanTime) > @lateArrivalTime
+//             THEN CAST(a.ScanTime as DATE) 
+//           END) as LateDays,
+          
+//           -- Total unique attendance days
+//           COUNT(DISTINCT CAST(a.ScanTime as DATE)) as TotalAttendanceDays,
+          
+//           -- Total attendance records (for reference)
+//           COUNT(a.AttendanceID) as TotalRecords,
+          
+//           -- Get earliest attendance date for accurate range
+//           MIN(CAST(a.ScanTime as DATE)) as EarliestDate,
+//           MAX(CAST(a.ScanTime as DATE)) as LatestDate
+//         FROM dbo.Attendance a
+//         WHERE a.StudentID = @studentId 
+//         AND a.SchoolID = @schoolId
+//         AND a.ScanTime >= @startDate
+//       `);
+
+//     const result = statsQuery.recordset[0];
+    
+//     // Calculate the actual date range to count weekdays
+//     const earliestDate = result.EarliestDate ? new Date(result.EarliestDate) : startDate;
+//     const latestDate = result.LatestDate ? new Date(result.LatestDate) : new Date();
+    
+//     // Count actual weekdays (Mon-Fri) in the date range
+//     let expectedSchoolDays = 0;
+//     const currentDate = new Date(earliestDate);
+//     const endDate = new Date(latestDate);
+//     endDate.setHours(23, 59, 59, 999);
+    
+//     while (currentDate <= endDate) {
+//       const dayOfWeek = currentDate.getDay();
+//       if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+//         expectedSchoolDays++;
+//       }
+//       currentDate.setDate(currentDate.getDate() + 1);
+//     }
+    
+//     // Calculate derived stats
+//     const presentDays = result.PresentDays || 0;
+//     const lateDays = result.LateDays || 0;
+//     const absentDays = Math.max(0, expectedSchoolDays - presentDays);
+    
+//     // Calculate attendance rate
+//     const attendanceRate = expectedSchoolDays > 0 
+//       ? Math.round((presentDays / expectedSchoolDays) * 100) 
+//       : 0;
+
+//     console.log('📊 Attendance Stats:', {
+//       studentId,
+//       schoolId,
+//       dateRange: {
+//         earliest: earliestDate.toISOString().split('T')[0],
+//         latest: latestDate.toISOString().split('T')[0]
+//       },
+//       expectedSchoolDays,
+//       presentDays,
+//       lateDays,
+//       absentDays,
+//       attendanceRate: `${attendanceRate}%`
+//     });
+
+//     return {
+//       presentDays: presentDays,
+//       lateDays: lateDays,
+//       absentDays: absentDays,
+//       attendanceRate: attendanceRate,
+//       totalAttendanceDays: result.TotalAttendanceDays || 0,
+//       totalRecords: result.TotalRecords || 0,
+//       expectedSchoolDays: expectedSchoolDays,
+//       period: {
+//         days: days,
+//         earliestRecord: result.EarliestDate,
+//         latestRecord: result.LatestDate,
+//         actualStartDate: earliestDate.toISOString().split('T')[0],
+//         actualEndDate: latestDate.toISOString().split('T')[0]
+//       }
+//     };
+
+//   } catch (error) {
+//     console.error('Calculate attendance stats error:', error);
+//     throw new Error(`Calculate attendance stats failed: ${error.message}`);
+//   }
+// }
 async function calculateProperAttendanceStats(pool, studentId, schoolId, days) {
   try {
-    // ✅ Get school time settings from SchoolTimeSettings table
+    // Get school time settings
     const settingsQuery = await pool.request()
       .input('schoolId', sql.Int, schoolId || 2)
       .query(`
@@ -211,22 +342,21 @@ async function calculateProperAttendanceStats(pool, studentId, schoolId, days) {
         WHERE SchoolID = @schoolId
       `);
     
-    // Use settings from DB or fallback to defaults
-    const startTime = settingsQuery.recordset[0]?.SchoolStartTime || '08:00:00';
     const lateTime = settingsQuery.recordset[0]?.LateArrivalTime || '08:30:00';
     
-    console.log('⚙️ School time settings loaded:', {
-      schoolId,
-      startTime,
-      lateTime
-    });
-    
-    // Calculate the actual start date based on days parameter
+    // ✅ Calculate date range for query
+    const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
     
-    // Calculate stats based on unique DAYS, not individual records
+    console.log('📅 Stats calculation range:', {
+      from: startDate.toISOString().split('T')[0],
+      to: endDate.toISOString().split('T')[0],
+      days
+    });
+    
+    // Get attendance data
     const statsQuery = await pool.request()
       .input('studentId', sql.Int, studentId)
       .input('schoolId', sql.Int, schoolId || 2)
@@ -234,27 +364,20 @@ async function calculateProperAttendanceStats(pool, studentId, schoolId, days) {
       .input('lateArrivalTime', sql.Time, lateTime)
       .query(`
         SELECT 
-          -- Count unique days with at least one check-in (Present Days)
-          COUNT(DISTINCT CASE 
-            WHEN a.Status = 'IN' 
-            THEN CAST(a.ScanTime as DATE) 
-          END) as PresentDays,
+          -- Count unique days with ANY attendance (IN or OUT)
+          COUNT(DISTINCT CAST(a.ScanTime as DATE)) as PresentDays,
           
-          -- Count unique days with late arrivals (Late Days)
-          -- Using LateArrivalTime from settings
+          -- Count unique days with late arrivals (only IN records)
           COUNT(DISTINCT CASE 
             WHEN a.Status = 'IN' 
             AND CONVERT(TIME, a.ScanTime) > @lateArrivalTime
             THEN CAST(a.ScanTime as DATE) 
           END) as LateDays,
           
-          -- Total unique attendance days
-          COUNT(DISTINCT CAST(a.ScanTime as DATE)) as TotalAttendanceDays,
-          
-          -- Total attendance records (for reference)
+          -- Total records for reference
           COUNT(a.AttendanceID) as TotalRecords,
           
-          -- Get earliest attendance date for accurate range
+          -- Get earliest and latest dates
           MIN(CAST(a.ScanTime as DATE)) as EarliestDate,
           MAX(CAST(a.ScanTime as DATE)) as LatestDate
         FROM dbo.Attendance a
@@ -265,25 +388,23 @@ async function calculateProperAttendanceStats(pool, studentId, schoolId, days) {
 
     const result = statsQuery.recordset[0];
     
-    // Calculate the actual date range to count weekdays
-    const earliestDate = result.EarliestDate ? new Date(result.EarliestDate) : startDate;
-    const latestDate = result.LatestDate ? new Date(result.LatestDate) : new Date();
-    
-    // Count actual weekdays (Mon-Fri) in the date range
+    // ✅ FIX: Count expected school days from QUERY START DATE to TODAY
+    // Not from earliest attendance to latest attendance!
     let expectedSchoolDays = 0;
-    const currentDate = new Date(earliestDate);
-    const endDate = new Date(latestDate);
-    endDate.setHours(23, 59, 59, 999);
+    const current = new Date(startDate);
+    const today = new Date(endDate);
+    today.setHours(23, 59, 59, 999);
     
-    while (currentDate <= endDate) {
-      const dayOfWeek = currentDate.getDay();
+    while (current <= today) {
+      const dayOfWeek = current.getDay();
+      // Count Monday-Friday only
       if (dayOfWeek >= 1 && dayOfWeek <= 5) {
         expectedSchoolDays++;
       }
-      currentDate.setDate(currentDate.getDate() + 1);
+      current.setDate(current.getDate() + 1);
     }
     
-    // Calculate derived stats
+    // Calculate stats
     const presentDays = result.PresentDays || 0;
     const lateDays = result.LateDays || 0;
     const absentDays = Math.max(0, expectedSchoolDays - presentDays);
@@ -293,18 +414,16 @@ async function calculateProperAttendanceStats(pool, studentId, schoolId, days) {
       ? Math.round((presentDays / expectedSchoolDays) * 100) 
       : 0;
 
-    console.log('📊 Attendance Stats:', {
+    console.log('📊 Attendance Stats Calculated:', {
       studentId,
-      schoolId,
-      dateRange: {
-        earliest: earliestDate.toISOString().split('T')[0],
-        latest: latestDate.toISOString().split('T')[0]
-      },
+      dateRange: `${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`,
       expectedSchoolDays,
       presentDays,
-      lateDays,
       absentDays,
-      attendanceRate: `${attendanceRate}%`
+      lateDays,
+      attendanceRate: `${attendanceRate}%`,
+      earliestRecord: result.EarliestDate,
+      latestRecord: result.LatestDate
     });
 
     return {
@@ -312,20 +431,19 @@ async function calculateProperAttendanceStats(pool, studentId, schoolId, days) {
       lateDays: lateDays,
       absentDays: absentDays,
       attendanceRate: attendanceRate,
-      totalAttendanceDays: result.TotalAttendanceDays || 0,
       totalRecords: result.TotalRecords || 0,
       expectedSchoolDays: expectedSchoolDays,
       period: {
         days: days,
         earliestRecord: result.EarliestDate,
         latestRecord: result.LatestDate,
-        actualStartDate: earliestDate.toISOString().split('T')[0],
-        actualEndDate: latestDate.toISOString().split('T')[0]
+        queryStartDate: startDate.toISOString().split('T')[0],
+        queryEndDate: endDate.toISOString().split('T')[0]
       }
     };
 
   } catch (error) {
-    console.error('Calculate attendance stats error:', error);
+    console.error('❌ Calculate attendance stats error:', error);
     throw new Error(`Calculate attendance stats failed: ${error.message}`);
   }
 }
